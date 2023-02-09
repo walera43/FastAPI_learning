@@ -1,12 +1,23 @@
-import databases
-import sqlalchemy
-import ormar
+from typing import AsyncGenerator
 
-metadata = sqlalchemy.MetaData()
-database = databases.Database("sqlite:///test.db")
-engine = sqlalchemy.create_engine("sqlite:///test.db")
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeMeta, declarative_base, sessionmaker
+
+SQLALCHEMY_DATABASE_URI = ("sqlite+aiosqlite:///test.db" + "?check_same_thread=False")
+
+Base: DeclarativeMeta = declarative_base()
 
 
-class MainMeta(ormar.ModelMeta):
-    metadata = metadata
-    database = database
+engine = create_async_engine(SQLALCHEMY_DATABASE_URI)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+async def create_db_and_tables():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session() as db:
+        yield db
